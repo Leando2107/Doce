@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Controle de Saída de Doces</title>
+  <style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f9fafb;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      color: #8e44ad;
+      margin-bottom: 30px;
+    }
+    h2 {
+      color: #6c3483;
+      border-bottom: 2px solid #ddd;
+      padding-bottom: 5px;
+      margin-top: 30px;
+    }
+    input, select, button {
+      margin: 10px 5px 10px 0;
+      padding: 10px;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-sizing: border-box;
+    }
+    input, select {
+      width: 250px;
+      max-width: 100%;
+    }
+    button {
+      background-color: #8e44ad;
+      color: white;
+      cursor: pointer;
+      border: none;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #732d91;
+    }
+    .section {
+      background: #fff;
+      padding: 20px;
+      margin-bottom: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #f3e5f5;
+      color: #6a1b9a;
+    }
+    .filters label {
+      font-weight: bold;
+      display: block;
+      margin-top: 10px;
+    }
+    .filters input[type="date"], .filters select {
+      width: auto;
+      display: inline-block;
+    }
+    #historico {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+    
+
+  <h1>Controle de Saída de Doces</h1>
+
+  <div class="section">
+    <h2>Cadastrar Doce</h2>
+    <input type="text" id="nomeDoce" placeholder="Nome do doce">
+    <input type="number" id="precoDoce" placeholder="Preço (R$)">
+    <button onclick="cadastrarDoce()">Cadastrar</button>
+  </div>
+
+  <div class="section">
+    <h2>Cadastrar Pessoa</h2>
+    <input type="text" id="nomePessoa" placeholder="Nome da pessoa">
+    <button onclick="cadastrarPessoa()">Cadastrar</button>
+  </div>
+
+  <div class="section">
+    <h2>Registrar Retirada</h2>
+    <select id="selectPessoa"></select>
+    <select id="selectDoce"></select>
+    <input type="number" id="quantidade" placeholder="Quantidade" min="1">
+    <button onclick="registrarRetirada()">Registrar</button>
+  </div>
+
+  <div class="section">
+    <h2>Controle de Débitos</h2>
+    <table id="tabelaDebitos">
+      <thead>
+        <tr>
+          <th>Pessoa</th>
+          <th>Valor Devido (R$)</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Histórico de Retiradas por Dia</h2>
+    <div id="historico"></div>
+  </div>
+
+  <div class="section">
+    <h2>Filtros do Histórico</h2>
+    <label>Pessoa:</label>
+    <select id="filtroPessoa">
+      <option value="">Todos</option>
+    </select>
+    <label>Data:</label>
+    <input type="date" id="filtroData">
+    <button onclick="atualizarHistorico()">Aplicar Filtro</button>
+    <button onclick="exportarCSV()">Exportar para Excel (.csv)</button>
+  </div>
+  <!-- Adições no HTML -->
+<!-- Botões de remoção para doces e pessoas -->
+<div class="section">
+    <h2>Remover Doce</h2>
+    <select id="removerDoceSelect"></select>
+    <button onclick="removerDoce()">Remover</button>
+  </div>
+  
+  <div class="section">
+    <h2>Remover Pessoa</h2>
+    <select id="removerPessoaSelect"></select>
+    <button onclick="removerPessoa()">Remover</button>
+  </div>
+  
+
+  <script>
+    let doces = JSON.parse(localStorage.getItem('doces')) || [];
+    let pessoas = JSON.parse(localStorage.getItem('pessoas')) || [];
+    let debitos = JSON.parse(localStorage.getItem('debitos')) || {};
+    let historico = JSON.parse(localStorage.getItem('historico')) || [];
+
+    function salvarDados() {
+      localStorage.setItem('doces', JSON.stringify(doces));
+      localStorage.setItem('pessoas', JSON.stringify(pessoas));
+      localStorage.setItem('debitos', JSON.stringify(debitos));
+      localStorage.setItem('historico', JSON.stringify(historico));
+    }
+
+    function atualizarSelects() {
+      const pessoaSelect = document.getElementById('selectPessoa');
+      const doceSelect = document.getElementById('selectDoce');
+
+      pessoaSelect.innerHTML = pessoas.map(p => `<option value="${p}">${p}</option>`).join('');
+      doceSelect.innerHTML = doces.map(d => `<option value="${d.nome}">${d.nome} - R$${d.preco}</option>`).join('');
+    }
+
+    function atualizarFiltroPessoa() {
+      const select = document.getElementById('filtroPessoa');
+      if (!select) return;
+      select.innerHTML = '<option value="">Todos</option>' + pessoas.map(p => `<option value="${p}">${p}</option>`).join('');
+    }
+
+    function atualizarTabela() {
+      const tbody = document.querySelector('#tabelaDebitos tbody');
+      tbody.innerHTML = '';
+      for (const pessoa in debitos) {
+        const valor = debitos[pessoa].toFixed(2);
+        tbody.innerHTML += `
+          <tr>
+            <td>${pessoa}</td>
+            <td>R$ ${valor}</td>
+            <td><button onclick="quitar('${pessoa}')">Marcar como Pago</button></td>
+          </tr>`;
+      }
+    }
+
+    function atualizarHistorico() {
+      const container = document.getElementById('historico');
+      if (!container) return;
+
+      const filtroPessoa = document.getElementById('filtroPessoa')?.value || '';
+      const filtroData = document.getElementById('filtroData')?.value || '';
+
+      const agrupadoPorDia = {};
+      historico.forEach(r => {
+        const corresponde =
+          (!filtroPessoa || r.pessoa === filtroPessoa) &&
+          (!filtroData || r.data === filtroData);
+        if (corresponde) {
+          if (!agrupadoPorDia[r.data]) agrupadoPorDia[r.data] = [];
+          agrupadoPorDia[r.data].push(r);
+        }
+      });
+
+      container.innerHTML = '';
+      const dias = Object.keys(agrupadoPorDia).sort((a, b) => new Date(b) - new Date(a));
+
+      if (dias.length === 0) {
+        container.innerHTML = '<p>Nenhum registro encontrado.</p>';
+        return;
+      }
+
+      dias.forEach(dia => {
+        container.innerHTML += `<h4>${dia}</h4>`;
+        container.innerHTML += `
+          <table>
+            <tr><th>Pessoa</th><th>Doce</th><th>Qtd</th><th>Total (R$)</th></tr>
+            ${agrupadoPorDia[dia].map(item => `
+              <tr>
+                <td>${item.pessoa}</td>
+                <td>${item.doce}</td>
+                <td>${item.qtd}</td>
+                <td>R$ ${item.total.toFixed(2)}</td>
+              </tr>`).join('')}
+          </table><br>`;
+      });
+    }
+
+    function cadastrarDoce() {
+      const nome = document.getElementById('nomeDoce').value;
+      const preco = parseFloat(document.getElementById('precoDoce').value);
+      if (!nome || isNaN(preco)) return alert('Preencha corretamente.');
+      doces.push({ nome, preco });
+      salvarDados();
+      atualizarSelects();
+      document.getElementById('nomeDoce').value = '';
+      document.getElementById('precoDoce').value = '';
+    }
+
+    function cadastrarPessoa() {
+      const nome = document.getElementById('nomePessoa').value;
+      if (!nome) return alert('Digite o nome.');
+      if (!pessoas.includes(nome)) {
+        pessoas.push(nome);
+        debitos[nome] = 0;
+        salvarDados();
+        atualizarSelects();
+        atualizarTabela();
+        atualizarFiltroPessoa();
+      }
+      document.getElementById('nomePessoa').value = '';
+    }
+
+    function registrarRetirada() {
+      const pessoa = document.getElementById('selectPessoa').value;
+      const nomeDoce = document.getElementById('selectDoce').value;
+      const quantidade = parseInt(document.getElementById('quantidade').value);
+
+      if (!quantidade || quantidade <= 0) return alert('Quantidade inválida.');
+
+      const doce = doces.find(d => d.nome === nomeDoce);
+      const total = doce.preco * quantidade;
+      const hoje = new Date().toISOString().split('T')[0];
+
+      historico.push({
+        pessoa,
+        doce: nomeDoce,
+        qtd: quantidade,
+        total,
+        data: hoje
+      });
+
+      debitos[pessoa] = (debitos[pessoa] || 0) + total;
+      salvarDados();
+      atualizarTabela();
+      atualizarHistorico();
+      document.getElementById('quantidade').value = '';
+    }
+
+    function quitar(pessoa) {
+      if (confirm(`Marcar como pago o débito de ${pessoa}?`)) {
+        debitos[pessoa] = 0;
+        salvarDados();
+        atualizarTabela();
+      }
+    }
+
+    function exportarCSV() {
+      if (historico.length === 0) return alert('Nada para exportar.');
+      let csv = "Data,Pessoa,Doce,Quantidade,Total (R$)\n";
+      historico.forEach(r => {
+        csv += `${r.data},${r.pessoa},${r.doce},${r.qtd},${r.total.toFixed(2)}\n`;
+      });
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "historico_doces.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    atualizarSelects();
+    atualizarTabela();
+    atualizarHistorico();
+    atualizarFiltroPessoa();
+
+  function atualizarSelectsRemocao() {
+    const removerDoceSelect = document.getElementById('removerDoceSelect');
+    const removerPessoaSelect = document.getElementById('removerPessoaSelect');
+  
+    if (removerDoceSelect) {
+      removerDoceSelect.innerHTML = doces.map(d => `<option value="${d.nome}">${d.nome}</option>`).join('');
+    }
+  
+    if (removerPessoaSelect) {
+      removerPessoaSelect.innerHTML = pessoas.map(p => `<option value="${p}">${p}</option>`).join('');
+    }
+  }
+  
+  function removerDoce() {
+    const nomeDoce = document.getElementById('removerDoceSelect').value;
+    if (!nomeDoce) return alert('Selecione um doce para remover.');
+  
+    if (confirm(`Tem certeza que deseja remover o doce "${nomeDoce}"?`)) {
+      doces = doces.filter(d => d.nome !== nomeDoce);
+      salvarDados();
+      atualizarSelects();
+      atualizarSelectsRemocao();
+    }
+  }
+  
+  function removerPessoa() {
+    const nomePessoa = document.getElementById('removerPessoaSelect').value;
+    if (!nomePessoa) return alert('Selecione uma pessoa para remover.');
+  
+    if (confirm(`Tem certeza que deseja remover a pessoa "${nomePessoa}" e seus registros?`)) {
+      pessoas = pessoas.filter(p => p !== nomePessoa);
+      delete debitos[nomePessoa];
+      historico = historico.filter(h => h.pessoa !== nomePessoa);
+      salvarDados();
+      atualizarSelects();
+      atualizarSelectsRemocao();
+      atualizarTabela();
+      atualizarFiltroPessoa();
+      atualizarHistorico();
+    }
+  }
+  function atualizarSelects() {
+  const pessoaSelect = document.getElementById('selectPessoa');
+  const doceSelect = document.getElementById('selectDoce');
+
+  pessoaSelect.innerHTML = pessoas.map(p => `<option value="${p}">${p}</option>`).join('');
+  doceSelect.innerHTML = doces.map(d => `<option value="${d.nome}">${d.nome} - R$${d.preco}</option>`).join('');
+
+  atualizarSelectsRemocao(); // chamada para atualizar selects de remoção
+}
+
+</script>
+</body>
+</html>
