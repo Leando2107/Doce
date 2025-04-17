@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Controle de Saída de Doces</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f8f9fa;
+      color: #333;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 40px;
+      color: #6c5ce7;
+    }
+
+    .section {
+      background-color: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #2d3436;
+    }
+
+    input, select, button {
+      margin: 5px;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+
+    button {
+      background-color: #6c5ce7;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background-color: #5a4bcf;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    th, td {
+      padding: 12px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+
+    th {
+      background-color: #f1f2f6;
+      color: #2f3542;
+    }
+
+    .pago {
+      color: green;
+      font-weight: bold;
+    }
+
+    .pendente {
+      color: red;
+      font-weight: bold;
+    }
+
+    select:invalid {
+      color: gray;
+    }
+
+    label {
+      margin-right: 10px;
+      display: inline-block;
+    }
+
+    @media (max-width: 768px) {
+      input, select, button {
+        display: block;
+        width: 100%;
+        margin: 10px 0;
+      }
+
+      label {
+        display: block;
+        margin-top: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- AQUI ENTRA O RESTANTE DO HTML COM TODAS AS FUNÇÕES -->
+<!-- Basta colar o código da versão anterior (com todos os scripts JS e seções) aqui -->
+
+<!-- EXEMPLO: -->
+<h1>Controle de Saída de Doces 🍬</h1>
+<div class="section">
+  <h2>Cadastrar / Remover Doce</h2>
+  <input type="text" id="nomeDoce" placeholder="Nome do doce">
+  <input type="number" id="precoDoce" placeholder="Preço (R$)">
+  <button onclick="cadastrarDoce()">Cadastrar</button>
+  <select id="removerDoceSelect"></select>
+  <button onclick="removerDoce()">Remover Doce</button>
+</div>
+</head>
+<body>
+
+<div class="section">
+  <h2>Cadastrar Pessoa</h2>
+  <input type="text" id="nomePessoa" placeholder="Nome da pessoa">
+  <button onclick="cadastrarPessoa()">Cadastrar</button>
+</div>
+
+<div class="section">
+  <h2>Registrar Retirada</h2>
+  <select id="selectPessoa"></select>
+  <select id="selectDoce"></select>
+  <input type="number" id="quantidade" placeholder="Quantidade" min="1">
+  <button onclick="registrarRetirada()">Registrar</button>
+</div>
+
+<div class="section">
+  <h2>Controle de Débitos</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Pessoa</th>
+        <th>Valor Devido (R$)</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody id="tabelaDebitos"></tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2>Histórico de Retiradas</h2>
+  <label>Pessoa:</label>
+  <select id="filtroPessoa"><option value="">Todos</option></select>
+  <label>Data:</label>
+  <input type="date" id="filtroData">
+  <button onclick="atualizarHistorico()">Aplicar Filtro</button>
+  <button onclick="exportarCSV()">Exportar CSV</button>
+  <div id="historico"></div>
+</div>
+
+<h2>Cadastrar / Remover Pessoa</h2>
+<input type="text" id="nomePessoa" placeholder="Nome da pessoa">
+<button onclick="cadastrarPessoa()">Cadastrar</button>
+<select id="removerPessoaSelect"></select>
+<button onclick="removerPessoa()">Remover Pessoa</button>
+
+<script>
+  let doces = JSON.parse(localStorage.getItem('doces')) || [];
+  let pessoas = JSON.parse(localStorage.getItem('pessoas')) || [];
+  let debitos = JSON.parse(localStorage.getItem('debitos')) || {};
+  let historico = JSON.parse(localStorage.getItem('historico')) || [];
+
+  function salvar() {
+    localStorage.setItem('doces', JSON.stringify(doces));
+    localStorage.setItem('pessoas', JSON.stringify(pessoas));
+    localStorage.setItem('debitos', JSON.stringify(debitos));
+    localStorage.setItem('historico', JSON.stringify(historico));
+  }
+
+  function atualizarSelects() {
+  const selectPessoa = document.getElementById('selectPessoa');
+  const filtroPessoa = document.getElementById('filtroPessoa');
+  const removerPessoaSelect = document.getElementById('removerPessoaSelect');
+  selectPessoa.innerHTML = pessoas.map(p => `<option value="${p}">${p}</option>`).join('');
+  filtroPessoa.innerHTML = '<option value="">Todos</option>' + pessoas.map(p => `<option value="${p}">${p}</option>`).join('');
+  removerPessoaSelect.innerHTML = pessoas.map(p => `<option value="${p}">${p}</option>`).join('');
+
+  const selectDoce = document.getElementById('selectDoce');
+  const removerDoceSelect = document.getElementById('removerDoceSelect');
+  selectDoce.innerHTML = doces.map(d => `<option value="${d.nome}">${d.nome} - R$${d.preco}</option>`).join('');
+  removerDoceSelect.innerHTML = doces.map(d => `<option value="${d.nome}">${d.nome}</option>`).join('');
+}
+
+
+  function cadastrarDoce() {
+    const nome = document.getElementById('nomeDoce').value;
+    const preco = parseFloat(document.getElementById('precoDoce').value);
+    if (!nome || isNaN(preco)) return alert('Preencha corretamente.');
+    doces.push({ nome, preco });
+    salvar();
+    atualizarSelects();
+    document.getElementById('nomeDoce').value = '';
+    document.getElementById('precoDoce').value = '';
+  }
+
+  function cadastrarPessoa() {
+    const nome = document.getElementById('nomePessoa').value;
+    if (!nome || pessoas.includes(nome)) return alert('Nome inválido ou já existe.');
+    pessoas.push(nome);
+    debitos[nome] = 0;
+    salvar();
+    atualizarSelects();
+    atualizarTabela();
+    document.getElementById('nomePessoa').value = '';
+  }
+
+  function registrarRetirada() {
+    const pessoa = document.getElementById('selectPessoa').value;
+    const nomeDoce = document.getElementById('selectDoce').value;
+    const quantidade = parseInt(document.getElementById('quantidade').value);
+    if (!pessoa || !nomeDoce || quantidade <= 0) return alert('Dados inválidos.');
+
+    const doce = doces.find(d => d.nome === nomeDoce);
+    const total = doce.preco * quantidade;
+    const data = new Date().toISOString().split('T')[0];
+
+    historico.push({
+      pessoa,
+      doce: nomeDoce,
+      qtd: quantidade,
+      total,
+      data,
+      pago: false
+    });
+
+    debitos[pessoa] = (debitos[pessoa] || 0) + total;
+    salvar();
+    atualizarTabela();
+    atualizarHistorico();
+    document.getElementById('quantidade').value = '';
+  }
+
+  function atualizarTabela() {
+    const tbody = document.getElementById('tabelaDebitos');
+    tbody.innerHTML = '';
+    for (const pessoa in debitos) {
+      const valor = debitos[pessoa].toFixed(2);
+      tbody.innerHTML += `
+        <tr>
+          <td>${pessoa}</td>
+          <td>R$ ${valor}</td>
+          <td><button onclick="quitar('${pessoa}')">Marcar como Pago</button></td>
+        </tr>`;
+    }
+  }
+
+  function pagarItem(index) {
+  if (!confirm("Confirmar pagamento deste item?")) return;
+  if (!historico[index] || historico[index].pago) return;
+
+  historico[index].pago = true;
+  const pessoa = historico[index].pessoa;
+  const total = historico[index].total;
+
+  debitos[pessoa] = Math.max((debitos[pessoa] || 0) - total, 0);
+  salvar();
+  atualizarTabela();
+  atualizarHistorico();
+}
+
+
+  function atualizarHistorico() {
+    const filtroPessoa = document.getElementById('filtroPessoa').value;
+    const filtroData = document.getElementById('filtroData').value;
+    const container = document.getElementById('historico');
+    container.innerHTML = '';
+
+    const filtrado = historico.filter(h => {
+      return (!filtroPessoa || h.pessoa === filtroPessoa) &&
+             (!filtroData || h.data === filtroData);
+    });
+
+    if (filtrado.length === 0) {
+      container.innerHTML = '<p>Nenhum registro encontrado.</p>';
+      return;
+    }
+
+    const agrupado = {};
+    filtrado.forEach(item => {
+      if (!agrupado[item.data]) agrupado[item.data] = [];
+      agrupado[item.data].push(item);
+    });
+
+    Object.keys(agrupado).sort((a, b) => new Date(b) - new Date(a)).forEach(data => {
+      container.innerHTML += `<h4>${data}</h4><table>
+        <tr><th>Pessoa</th><th>Doce</th><th>Qtd</th><th>Total (R$)</th><th>Status</th></tr>
+        ${agrupado[data].map(i => `
+          <tr>
+            <td>${i.pessoa}</td>
+            <td>${i.doce}</td>
+            <td>${i.qtd}</td>
+            <td>R$ ${i.total.toFixed(2)}</td>
+           <td class="${i.pago ? 'pago' : 'pendente'}">
+  ${i.pago ? 'Pago' : `<button onclick="pagarItem(${historico.indexOf(i)})">Pagar</button>`}
+</td>
+
+          </tr>`).join('')}
+      </table><br>`;
+    });
+  }
+
+  function exportarCSV() {
+    if (historico.length === 0) return alert('Nada para exportar.');
+    let csv = "Data,Pessoa,Doce,Quantidade,Total (R$),Status\n";
+    historico.forEach(r => {
+      csv += `${r.data},${r.pessoa},${r.doce},${r.qtd},${r.total.toFixed(2)},${r.pago ? 'Pago' : 'Pendente'}\n`;
+    });
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "historico_doces.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  atualizarSelects();
+  atualizarTabela();
+  atualizarHistorico();
+
+  function removerDoce() {
+  const nome = document.getElementById('removerDoceSelect').value;
+  if (!nome) return;
+  doces = doces.filter(d => d.nome !== nome);
+  salvar();
+  atualizarSelects();
+}
+
+function removerPessoa() {
+  const nome = document.getElementById('removerPessoaSelect').value;
+  if (!nome) return;
+  pessoas = pessoas.filter(p => p !== nome);
+  delete debitos[nome];
+  historico = historico.filter(h => h.pessoa !== nome);
+  salvar();
+  atualizarSelects();
+  atualizarTabela();
+  atualizarHistorico();
+}
+
+</script>
+
+</body>
+</html>
